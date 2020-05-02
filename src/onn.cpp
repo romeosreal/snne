@@ -7,13 +7,10 @@ Net::Net()
 
 }
 
-#define floatRand() ((float)(rand()) / (float)(RAND_MAX))
+#define floatRand() (((float)(rand()) / (float)(RAND_MAX)) - 0.5)
 
 void Net::setTopology(Topology topology)
 {
-
-  srand(time(0));
-
   LAYERS_COUNT = topology.getLayersCount();
   layerSize = new uint16_t[LAYERS_COUNT];
 
@@ -24,39 +21,27 @@ void Net::setTopology(Topology topology)
   for (int i = 0; i < LAYERS_COUNT; i++)
   {
     nodes[i] = new Node[layerSize[i]];
-    if (i != 0)
+    // For every node in every layer without input layer
+    for (int j = 0; j < layerSize[i]; j++)
     {
-      // For every node in every layer without input layer
-      for (int j = 0; j < layerSize[i]; j++)
+      // Create and setup array for weights
+      nodes[i][j].inputWeights = new float[layerSize[i - 1]];
+      for (int k = 0; k < layerSize[i - 1]; k++)
       {
-        // Create and setup array for weights
-        nodes[i][j].inputWeights = new float[layerSize[i - 1]];
-        for (int k = 0; k < layerSize[i - 1]; k++)
-        {
-          nodes[i][j].inputWeights[k] = floatRand();
-        }
-        // Setup bias
-        nodes[i][j].bias = floatRand();
+        nodes[i][j].inputWeights[k] = floatRand();
       }
-    }
-    else
-    {
-      // Setup biases for input layer
-      for (int j = 0; j < layerSize[i]; j++)
-      {
-        nodes[i][j].bias = floatRand();
-      }
+      // Setup bias
+      nodes[i][j].bias = floatRand();
     }
   }
 }
 
 float* Net::forward(float* input)
 {
-  // Set first layer equals to input, and apply activation function
+  // Set first layer equals to input
   for (int i = 0; i < layerSize[0]; i++)
   {
-    nodes[0][i].value = input[i] + nodes[0][i].bias;
-    nodes[0][i].activate();
+    nodes[0][i].value = input[i];
   }
 
   // For every layer
@@ -86,7 +71,6 @@ float* Net::forward(float* input)
   float* output = new float[layerSize[LAYERS_COUNT - 1]];
   for (uint16_t i = 0; i < layerSize[LAYERS_COUNT - 1]; i++)
   {
-    cout << nodes[LAYERS_COUNT - 1][i].value << "->";
     output[i] = nodes[LAYERS_COUNT - 1][i].value;
   }
 
@@ -95,12 +79,32 @@ float* Net::forward(float* input)
 
 #define sq(x) (x * x)
 
+float Net::loss()
+{
+  float loss = 0;
+  for (uint16_t batch = 0; batch < batchSize; batch++)
+  {
+    for (uint16_t i = 0; i < layerSize[LAYERS_COUNT - 1]; i++)
+    {
+      loss += sq(batchError[batch][LAYERS_COUNT - 1][i]);
+    }
+  }
+
+  for (uint16_t i = 0; i < layerSize[LAYERS_COUNT - 1]; i++)
+  {
+    loss += sq(nodes[LAYERS_COUNT - 1][i].error);
+  }
+
+  return loss;
+}
+
+#define beta 0.7
+
 void Net::backprop(float *output)
 {
   for (uint16_t i = 0; i < layerSize[LAYERS_COUNT - 1]; i++)
   {
-    nodes[LAYERS_COUNT - 1][i].error = output[i] - nodes[LAYERS_COUNT - 1][i].value;
-    cout << "ERROR:" << sq(nodes[LAYERS_COUNT - 1][i].error) << endl;
+    nodes[LAYERS_COUNT - 1][i].error = (output[i] - nodes[LAYERS_COUNT - 1][i].value);
   }
 
   for (uint16_t nextLayer = LAYERS_COUNT - 1, currentLayer = nextLayer - 1; nextLayer > 0; nextLayer--, currentLayer--)
@@ -113,9 +117,25 @@ void Net::backprop(float *output)
         total_error += nodes[nextLayer][j].error * nodes[nextLayer][j].inputWeights[i];
       }
 
-      nodes[currentLayer][i].error += nodes[currentLayer][i].getDerivative() * total_error;
+      nodes[currentLayer][i].error = total_error * nodes[currentLayer][i].getDerivative() * beta + (1 - beta) * nodes[currentLayer][i].error;
     }
   }
+}
+
+void Net::updateBatch()
+{
+  if (currentBatch >= batchSize) return;
+
+  for (int layer = 0; layer < LAYERS_COUNT; layer++)
+  {
+    for (int i = 0; i < layerSize[layer]; i++)
+    {
+      batchValue[currentBatch][layer][i] = nodes[layer][i].value;
+      batchError[currentBatch][layer][i] = nodes[layer][i].error;
+    }
+  }
+
+  currentBatch += 1;
 }
 
 void Net::setLearningRate(float lr)
@@ -123,20 +143,66 @@ void Net::setLearningRate(float lr)
   learningRate = lr;
 }
 
-void Net::updateWeights()
+void Net::setBatchSize(uint16_t sz)
 {
-  for (int i = 1; i < LAYERS_COUNT; i++)
+  if (sz < 1)
   {
-    for (int j = 0; j < layerSize[i]; j++)
-    {
-      for (int k = 0; k < layerSize[i - 1]; k++)
-      {
-        nodes[i][j].inputWeights[k] += learningRate * nodes[i][j].error * nodes[i - 1][k].value;
-      }
+    cout << "! INCORRECT BATCH SIZE !" << endl;
+    return;
+  }
 
-      nodes[i][j].error = 0;
+  if (sz == 1) return;
+
+  batchSize = sz - 1;
+
+  batchValue = new float**[batchSize];
+  batchError = new float**[batchSize];
+  for (int batch = 0; batch < batchSize; batch++)
+  {
+    batchValue[batch] = new float*[LAYERS_COUNT];
+    batchError[batch] = new float*[LAYERS_COUNT];
+    for (int layer = 0; layer < LAYERS_COUNT; layer++)
+    {
+      batchValue[batch][layer] = new float[layerSize[layer]];
+      batchError[batch][layer] = new float[layerSize[layer]];
     }
   }
+}
+
+void Net::updateWeights()
+{
+
+  float lr = learningRate;
+  float lr2 = lr;
+
+  for (int batch = 0; batch < batchSize; batch++)
+  {
+    for (int layer = 1; layer < LAYERS_COUNT; layer++)
+    {
+      for (int i = 0; i < layerSize[layer]; i++)
+      {
+        for (int j = 0; j < layerSize[layer - 1]; j++)
+        {
+          nodes[layer][i].inputWeights[j] += lr * batchError[batch][layer][i] * batchValue[batch][layer - 1][j];
+        }
+        nodes[layer][i].bias += lr2 * batchError[batch][layer][i];
+      }
+    }
+  }
+
+  for (int layer = 1; layer < LAYERS_COUNT; layer++)
+  {
+    for (int i = 0; i < layerSize[layer]; i++)
+    {
+      for (int j = 0; j < layerSize[layer - 1]; j++)
+      {
+        nodes[layer][i].inputWeights[j] += lr * nodes[layer][i].error * nodes[layer - 1][j].value;
+      }
+      nodes[layer][i].bias += lr2 * nodes[layer][i].error;
+    }
+  }
+
+  currentBatch = 0;
 }
 
 Topology::Topology()
@@ -174,12 +240,12 @@ uint16_t Topology::getLayerSize(uint16_t index)
 
 float relu(float x)
 {
-  return (x > 0 ? x : 0);
+  return (x > 0 ? x : 0.01 * x);
 }
 
 float relu_derivative(float x)
 {
-  return (x > 0 ? 1 : 0);
+  return (x > 0 ? 1 : 0.01);
 }
 
 Node::Node()

@@ -48,8 +48,12 @@ namespace onn
     float* forward(float *input);
     void backprop(float *output);
     void updateWeights();
+    void updateBatch();
 
+    void setBatchSize(uint16_t sz);
     void setLearningRate(float lr);
+
+    float loss();
 
     Node **nodes;
 
@@ -57,6 +61,11 @@ namespace onn
     uint16_t* layerSize;
 
     float learningRate = 0.1;
+    uint16_t batchSize = 0;
+    uint16_t currentBatch = 0;
+
+    float ***batchValue;
+    float ***batchError;
   };
 }
 #endif
