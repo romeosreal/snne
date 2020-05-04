@@ -12,10 +12,10 @@ namespace onn
   {
   public:
     Topology();
-    void addLayer(uint16_t size);
+    void addLayer(int size);
     void print();
-    uint16_t getLayersCount();
-    uint16_t getLayerSize(uint16_t index);
+    int getLayersCount();
+    int getLayerSize(int index);
 
     vector<int16_t> sequence;
   };

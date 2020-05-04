@@ -19,23 +19,37 @@ namespace onn
     void backprop(float *output);
     void updateWeights();
     void updateBatch();
+    void fitBatch(float **input, float **output, int size);
 
-    void setBatchSize(uint16_t sz);
+    void configurePlot(int size, int windowSize);
+    void show();
+
+    void setBatchSize(int sz);
     void setLearningRate(float lr);
+    void setMomentum(float momentum);
 
-    float loss();
+    float calculateLoss();
+    float loss;
+
+    uint32_t epoch;
 
     Node **nodes;
 
-    uint16_t LAYERS_COUNT;
-    uint16_t* layerSize;
+    int LAYERS_COUNT;
+    int* layerSize;
 
-    float learningRate = 0.1;
-    uint16_t batchSize = 0;
-    uint16_t currentBatch = 0;
+    float learningRate;
+    float momentum;
+
+    int batchSize;
+    int currentBatch;
 
     float ***batchValue;
     float ***batchError;
+
+    #if SFML_SUPPORT
+    Plot plot;
+    #endif
   };
 }
 

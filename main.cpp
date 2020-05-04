@@ -6,49 +6,51 @@ using namespace onn;
 
 int main()
 {
-  srand(42);
-
   Topology topology;
-  topology.addLayer(2); // Inputs
+  topology.addLayer(2); // Input  layer
   topology.addLayer(3); // Hidden layer
   topology.addLayer(1); // Output layer
 
   topology.print();
-  int completed = 0;
-  for (int i = 0; i < 1000; i++)
+
+  Net net;
+  net.setTopology(topology);
+  net.setLearningRate(0.01);
+  net.setBatchSize(4);
+  net.configurePlot(400/* Plot quality */, 400/* Window size */);
+
+
+  // Generate XOR problem dataset
+  float **input = new float*[4];
+  float **output = new float*[4];
+
+  int id = 0;
+  for (int x1 = 0; x1 < 2; x1++)
   {
-    Net net;
-    net.setTopology(topology);
-    net.setLearningRate(0.1);
-    net.setBatchSize(4);
-
-    float input[4][2] = {{1, 1}, {1, 0}, {0, 1}, {0, 0}};
-    float output[4][1] = {{1}, {0}, {0}, {1}};
-
-    int32_t iter = 0;
-    float loss;
-    do
+    for (int x2 = 0; x2 < 2; x2++)
     {
-      loss = 0;
-      for (int j = 0; j < 4; j++)
-      {
-        net.forward(input[j]);
-        net.backprop(output[j]);
-        net.updateBatch();
-        loss += net.loss();
-        iter += 1;
-        net.updateWeights();
-      }
+      input[id] = new float[2];
+      input[id][0] = x1;
+      input[id][1] = x2;
 
-      if (loss < 1e-5)
-      {
-        completed += 1;
-        break;
-      }
-    } while (iter < 5e5);
-    if (iter < 5e5) cout << "Good" << endl;
-    else cout << "Bad" << endl;
+      output[id] = new float[1];
+      output[id][0] = x1 ^ x2;
+      id++;
+    }
   }
-  cout << completed << "/" << 1000 << endl;
+
+
+  // Train
+  do {
+
+    net.fitBatch(input, output, 4/*Dataset size*/);
+
+    cout << "EPOCH: " << net.epoch << "\t LOSS: " << net.loss << endl;
+
+  } while (net.loss > 1e-4);
+
+  // Show plot
+  net.show();
+
   return 0;
 }

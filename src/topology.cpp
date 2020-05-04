@@ -17,17 +17,17 @@ void Topology::print()
   cout << endl;
 }
 
-void Topology::addLayer(uint16_t size)
+void Topology::addLayer(int size)
 {
   sequence.push_back(size);
 }
 
-uint16_t Topology::getLayersCount()
+int Topology::getLayersCount()
 {
   return this->sequence.size();
 }
 
-uint16_t Topology::getLayerSize(uint16_t index)
+int Topology::getLayerSize(int index)
 {
   return this->sequence[index];
 }
