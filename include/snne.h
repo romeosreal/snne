@@ -2,7 +2,7 @@
 #define __ONN_H__
 
 // SFML support definition
-#define SFML_SUPPORT 0
+#define SFML_SUPPORT 1
 
 
 #if SFML_SUPPORT
