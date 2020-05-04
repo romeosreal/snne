@@ -1,5 +1,5 @@
 #include <iostream>
-#include <onn.h>
+#include <snne.h>
 
 using namespace std;
 using namespace onn;

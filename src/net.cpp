@@ -1,4 +1,4 @@
-#include <onn.h>
+#include <snne.h>
 
 using namespace onn;
 
@@ -307,6 +307,6 @@ void Net::show()
   while (plot.window.isOpen())
   plot.draw();
   #else
-  cout << "ERROR: SFML is blocked, please, go to onn.h and set SFML_SUPPORT to 1 if you want to use SFML functionality" << endl;
+  cout << "ERROR: SFML is blocked, please, go to snne.h and set SFML_SUPPORT to 1 if you want to use SFML functionality" << endl;
   #endif
 }

@@ -7,6 +7,7 @@ CC = g++
 console:
 	@echo "Compiling..."
 	@${CC} -c main.cpp -I include/
+	@${CC} -c src/net.cpp -I include/
 	@${CC} -c src/node.cpp -I include/
 	@${CC} -c src/topology.cpp -I include/
 	@g++ main.o net.o node.o topology.o -o app.o
